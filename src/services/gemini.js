@@ -2,7 +2,7 @@ class GeminiService {
   constructor() {
     this.apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     this.isEnabled = import.meta.env.VITE_AI_ENABLED === 'true';
-    this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+    this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
   }
 
   isAvailable() {
