@@ -50,6 +50,12 @@ const orderSchema = new mongoose.Schema(
       trim: true,
       maxlength: 1000,
     },
+    itemName: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 200,
+    },
     status: {
       type: String,
       required: true,

@@ -6,7 +6,8 @@ import Layout from "../components/Layout";
 import AddressInput from "../components/AddressInput";
 import OrderTracker from "../components/OrderTracker";
 import toast from "react-hot-toast";
-import { Package, Plus, MapPin, Clock, TrendingUp, Eye } from "lucide-react";
+import { Package, Plus, MapPin, Clock, TrendingUp, Eye, Sparkles, Loader } from "lucide-react";
+import { geminiService } from "../services/gemini";
 
 const CustomerDashboard = () => {
   const { user } = useAuth();
@@ -15,12 +16,16 @@ const CustomerDashboard = () => {
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [generatedDescription, setGeneratedDescription] = useState("");
+  const [showGeneratedDescription, setShowGeneratedDescription] = useState(false);
   const [stats, setStats] = useState(null);
   const [deliveryLocation, setDeliveryLocation] = useState(null);
 
   const [formData, setFormData] = useState({
     pickupAddress: "",
     dropAddress: "",
+    itemName: "",
     itemDescription: "",
     pickupCoords: null,
     dropCoords: null,
@@ -94,15 +99,51 @@ const CustomerDashboard = () => {
     }
   };
 
+  const generateDescription = async () => {
+    if (!formData.itemName.trim()) {
+      toast.error("Please enter an item name first");
+      return;
+    }
+
+    try {
+      setIsGeneratingDescription(true);
+      const description = await geminiService.generateItemDescription(formData.itemName);
+      setGeneratedDescription(description);
+      setShowGeneratedDescription(true);
+      toast.success("Description generated successfully!");
+    } catch (error) {
+      console.error("Failed to generate description:", error);
+      toast.error(error.message || "Failed to generate description");
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
+  const applyGeneratedDescription = () => {
+    setFormData(prev => ({
+      ...prev,
+      itemDescription: generatedDescription
+    }));
+    setShowGeneratedDescription(false);
+    setGeneratedDescription("");
+    toast.success("Description applied!");
+  };
+
+  const discardGeneratedDescription = () => {
+    setShowGeneratedDescription(false);
+    setGeneratedDescription("");
+  };
+
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
 
     if (
       !formData.pickupAddress ||
       !formData.dropAddress ||
+      !formData.itemName ||
       !formData.itemDescription
     ) {
-      toast.error("Please fill in all fields.");
+      toast.error("Please fill in all required fields.");
       return;
     }
 
@@ -112,6 +153,7 @@ const CustomerDashboard = () => {
       const orderData = {
         pickupAddress: formData.pickupAddress,
         dropAddress: formData.dropAddress,
+        itemName: formData.itemName,
         itemDescription: formData.itemDescription,
         pickupCoords: formData.pickupCoords,
         dropCoords: formData.dropCoords,
@@ -123,6 +165,7 @@ const CustomerDashboard = () => {
       setFormData({
         pickupAddress: "",
         dropAddress: "",
+        itemName: "",
         itemDescription: "",
         pickupCoords: null,
         dropCoords: null,
@@ -295,8 +338,73 @@ const CustomerDashboard = () => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Item Description <span className="text-red-500">*</span>
+                        Item Name <span className="text-red-500">*</span>
                       </label>
+                      <input
+                        type="text"
+                        value={formData.itemName}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            itemName: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g., Laptop Computer, Birthday Cake, Legal Documents"
+                        required
+                        className="w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Item Description <span className="text-red-500">*</span>
+                        </label>
+                        {geminiService.isAvailable() && (
+                          <button
+                            type="button"
+                            onClick={generateDescription}
+                            disabled={isGeneratingDescription || !formData.itemName.trim()}
+                            className="flex items-center space-x-1 text-sm text-primary hover:text-primary/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            {isGeneratingDescription ? (
+                              <Loader className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-4 w-4" />
+                            )}
+                            <span>
+                              {isGeneratingDescription ? "Generating..." : "AI Generate"}
+                            </span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Generated Description Preview */}
+                      {showGeneratedDescription && generatedDescription && (
+                        <div className="mb-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="text-sm font-medium text-blue-900">Generated Description:</h4>
+                            <div className="flex space-x-2">
+                              <button
+                                type="button"
+                                onClick={applyGeneratedDescription}
+                                className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition-colors"
+                              >
+                                Apply
+                              </button>
+                              <button
+                                type="button"
+                                onClick={discardGeneratedDescription}
+                                className="text-xs bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded transition-colors"
+                              >
+                                Discard
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-sm text-blue-800">{generatedDescription}</p>
+                        </div>
+                      )}
+
                       <textarea
                         value={formData.itemDescription}
                         onChange={(e) =>
@@ -305,11 +413,16 @@ const CustomerDashboard = () => {
                             itemDescription: e.target.value,
                           }))
                         }
-                        placeholder="Describe the item(s) to be delivered"
+                        placeholder="Describe the item(s) to be delivered in detail"
                         required
                         rows={3}
                         className="w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200"
                       />
+                      {geminiService.isAvailable() && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          💡 Enter an item name above and click "AI Generate" for automatic description
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex gap-4">

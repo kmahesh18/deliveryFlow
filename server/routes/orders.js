@@ -11,6 +11,7 @@ router.post("/", authenticateToken, async (req, res) => {
     const {
       pickupAddress,
       dropAddress,
+      itemName,
       itemDescription,
       pickupCoords,
       dropCoords,
@@ -25,12 +26,12 @@ router.post("/", authenticateToken, async (req, res) => {
     }
 
     // Validation
-    if (!pickupAddress || !dropAddress || !itemDescription) {
+    if (!pickupAddress || !dropAddress || !itemName || !itemDescription) {
       return res
         .status(400)
         .json({
           message:
-            "Pickup address, drop address, and item description are required",
+            "Pickup address, drop address, item name, and item description are required",
         });
     }
 
@@ -38,6 +39,7 @@ router.post("/", authenticateToken, async (req, res) => {
       customerId: req.user.userId,
       pickupAddress: pickupAddress.trim(),
       dropAddress: dropAddress.trim(),
+      itemName: itemName.trim(),
       itemDescription: itemDescription.trim(),
       deliveryInstructions: deliveryInstructions?.trim(),
       priority: priority || "normal",
