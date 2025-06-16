@@ -62,7 +62,7 @@ const Layout = ({ children }) => {
             >
               <div className="bg-gradient-to-br from-primary-500 to-blue-600 p-2 rounded-xl shadow-glow group-hover:scale-110 transition-transform duration-300">
                 <img 
-                  src="/logo.png" 
+                  src="/logo.svg" 
                   alt="DeliveryFlow Logo" 
                   className="h-6 w-6 object-contain"
                   onError={(e) => {
