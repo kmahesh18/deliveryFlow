@@ -52,15 +52,15 @@ const Layout = ({ children }) => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+      <header className="glass border-b border-white/20 sticky top-0 z-50 shadow-medium">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link
               to="/"
-              className="flex items-center space-x-3 text-primary font-bold text-xl hover:text-primary/80 transition-colors"
+              className="flex items-center space-x-3 text-primary font-bold text-xl hover:text-primary/80 transition-colors group"
             >
-              <div className="bg-primary p-2 rounded-lg">
+              <div className="bg-gradient-to-br from-primary-500 to-blue-600 p-2 rounded-xl shadow-glow group-hover:scale-110 transition-transform duration-300">
                 <Package className="h-6 w-6 text-white" />
               </div>
               <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
@@ -74,7 +74,7 @@ const Layout = ({ children }) => {
                 <>
                   <Link
                     to={getDashboardLink()}
-                    className="text-gray-700 hover:text-primary font-medium transition-colors duration-200"
+                    className="text-gray-700 hover:text-primary font-medium transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-white/20"
                   >
                     Dashboard
                   </Link>
@@ -83,8 +83,8 @@ const Layout = ({ children }) => {
                     <ConnectionStatus />
                     <NotificationBell />
 
-                    <div className="flex items-center space-x-3 px-3 py-2 rounded-lg bg-gray-50">
-                      <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                    <div className="glass-card flex items-center space-x-3 px-4 py-2 rounded-xl">
+                      <div className="w-8 h-8 bg-gradient-to-br from-primary to-blue-600 rounded-full flex items-center justify-center shadow-glow">
                         <User className="h-4 w-4 text-white" />
                       </div>
                       <div className="text-sm">
@@ -97,7 +97,7 @@ const Layout = ({ children }) => {
 
                     <button
                       onClick={handleLogout}
-                      className="flex items-center space-x-2 text-gray-600 hover:text-red-600 transition-colors"
+                      className="glass-button flex items-center space-x-2 text-gray-600 hover:text-red-600 transition-colors p-2 rounded-lg"
                       title="Logout"
                     >
                       <LogOut className="h-5 w-5" />
@@ -108,12 +108,12 @@ const Layout = ({ children }) => {
                 <>
                   <Link
                     to="/login"
-                    className="text-gray-700 hover:text-primary font-medium transition-colors duration-200"
+                    className="text-gray-700 hover:text-primary font-medium transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-white/20"
                   >
                     Sign In
                   </Link>
                   <Link to="/register">
-                    <button className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md">
+                    <button className="btn-primary">
                       Get Started
                     </button>
                   </Link>
@@ -124,7 +124,7 @@ const Layout = ({ children }) => {
             {/* Mobile menu button */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2 rounded-lg text-gray-600 hover:text-primary hover:bg-gray-100 transition-all duration-200"
+              className="md:hidden glass-button p-2 rounded-lg text-gray-600 hover:text-primary transition-all duration-200"
             >
               {isMenuOpen ? (
                 <X className="h-6 w-6" />
@@ -137,12 +137,12 @@ const Layout = ({ children }) => {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="md:hidden bg-white border-t border-gray-200 shadow-lg animate-slide-in">
+          <div className="md:hidden glass-card border-t border-white/20 shadow-lg animate-slide-in">
             <div className="px-4 py-4 space-y-4">
               {isAuthenticated ? (
                 <>
-                  <div className="flex items-center space-x-3 pb-4 border-b border-gray-200">
-                    <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                  <div className="flex items-center space-x-3 pb-4 border-b border-gray-200/50">
+                    <div className="w-10 h-10 bg-gradient-to-br from-primary to-blue-600 rounded-full flex items-center justify-center shadow-glow">
                       <User className="h-5 w-5 text-white" />
                     </div>
                     <div>
@@ -158,7 +158,7 @@ const Layout = ({ children }) => {
 
                   <Link
                     to={getDashboardLink()}
-                    className="block py-2 text-gray-700 hover:text-primary font-medium transition-colors"
+                    className="block py-2 text-gray-700 hover:text-primary font-medium transition-colors rounded-lg px-2 hover:bg-white/20"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Dashboard
@@ -166,7 +166,7 @@ const Layout = ({ children }) => {
 
                   <button
                     onClick={handleLogout}
-                    className="flex items-center space-x-2 py-2 text-red-600 hover:text-red-700 font-medium transition-colors"
+                    className="flex items-center space-x-2 py-2 text-red-600 hover:text-red-700 font-medium transition-colors rounded-lg px-2 hover:bg-red-50/50"
                   >
                     <LogOut className="h-5 w-5" />
                     <span>Sign Out</span>
@@ -176,13 +176,13 @@ const Layout = ({ children }) => {
                 <>
                   <Link
                     to="/login"
-                    className="block py-2 text-gray-700 hover:text-primary font-medium transition-colors"
+                    className="block py-2 text-gray-700 hover:text-primary font-medium transition-colors rounded-lg px-2 hover:bg-white/20"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Sign In
                   </Link>
                   <Link to="/register" onClick={() => setIsMenuOpen(false)}>
-                    <button className="w-full bg-primary hover:bg-primary/90 text-white py-3 px-4 rounded-lg font-medium transition-all duration-200">
+                    <button className="btn-primary w-full">
                       Get Started
                     </button>
                   </Link>
@@ -334,12 +334,12 @@ const Layout = ({ children }) => {
           <div className="mt-12 pt-8 border-t border-gray-200">
             <div className="flex flex-col md:flex-row justify-between items-center">
               <p className="text-sm text-gray-500">
-                &copy; 2024 DeliveryFlow. All rights reserved.
+                &copy; 2025 DeliveryFlow. All rights reserved.
               </p>
               <div className="flex items-center space-x-1 text-sm text-gray-500 mt-4 md:mt-0">
                 <span>Made with</span>
                 <span className="text-red-500">❤️</span>
-                <span>for modern delivery</span>
+                <span>By Mahesh</span>
               </div>
             </div>
           </div>
