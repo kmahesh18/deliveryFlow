@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Package, Menu, X, User, LogOut, Wifi, WifiOff } from "lucide-react";
+import { Package, Menu, X, User, LogOut, Wifi, WifiOff, Github, Linkedin, Mail, Phone } from "lucide-react";
 import NotificationBell from "./NotificationBell";
 
 const Layout = ({ children }) => {
@@ -61,7 +61,17 @@ const Layout = ({ children }) => {
               className="flex items-center space-x-3 text-primary font-bold text-xl hover:text-primary/80 transition-colors group"
             >
               <div className="bg-gradient-to-br from-primary-500 to-blue-600 p-2 rounded-xl shadow-glow group-hover:scale-110 transition-transform duration-300">
-                <Package className="h-6 w-6 text-white" />
+                <img 
+                  src="/logo.png" 
+                  alt="DeliveryFlow Logo" 
+                  className="h-6 w-6 object-contain"
+                  onError={(e) => {
+                    // Fallback to Package icon if logo fails to load
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'block';
+                  }}
+                />
+                <Package className="h-6 w-6 text-white hidden" />
               </div>
               <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
                 DeliveryFlow
@@ -203,7 +213,16 @@ const Layout = ({ children }) => {
             <div className="space-y-4">
               <div className="flex items-center space-x-3 text-primary font-bold text-lg">
                 <div className="bg-primary p-2 rounded-lg">
-                  <Package className="h-5 w-5 text-white" />
+                  <img 
+                    src="/logo.png" 
+                    alt="DeliveryFlow Logo" 
+                    className="h-5 w-5 object-contain"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'block';
+                    }}
+                  />
+                  <Package className="h-5 w-5 text-white hidden" />
                 </div>
                 <span>DeliveryFlow</span>
               </div>
@@ -212,6 +231,50 @@ const Layout = ({ children }) => {
                 reliability. Connect customers with delivery professionals
                 seamlessly.
               </p>
+              
+              {/* Contact Information */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-3">
+                  <Mail className="h-4 w-4 text-gray-500" />
+                  <a 
+                    href="mailto:maheshkolli888@gmail.com"
+                    className="text-sm text-gray-600 hover:text-primary transition-colors"
+                  >
+                    maheshkolli888@gmail.com
+                  </a>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Phone className="h-4 w-4 text-gray-500" />
+                  <a 
+                    href="tel:+919346968655"
+                    className="text-sm text-gray-600 hover:text-primary transition-colors"
+                  >
+                    +91 9346968655
+                  </a>
+                </div>
+              </div>
+
+              {/* Social Links */}
+              <div className="flex space-x-4">
+                <a
+                  href="https://github.com/kmahesh18"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 text-gray-500 hover:text-gray-900 transition-colors bg-gray-100 rounded-lg hover:bg-gray-200"
+                  title="GitHub"
+                >
+                  <Github className="h-5 w-5" />
+                </a>
+                <a
+                  href="https://www.linkedin.com/in/mahesh-kumar-0a2b47290/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 text-gray-500 hover:text-blue-600 transition-colors bg-gray-100 rounded-lg hover:bg-blue-50"
+                  title="LinkedIn"
+                >
+                  <Linkedin className="h-5 w-5" />
+                </a>
+              </div>
             </div>
 
             <div>
@@ -339,7 +402,15 @@ const Layout = ({ children }) => {
               <div className="flex items-center space-x-1 text-sm text-gray-500 mt-4 md:mt-0">
                 <span>Made with</span>
                 <span className="text-red-500">❤️</span>
-                <span>By Mahesh</span>
+                <span>by</span>
+                <a 
+                  href="https://github.com/kmahesh18" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:text-primary/80 font-medium transition-colors"
+                >
+                  Mahesh Kumar
+                </a>
               </div>
             </div>
           </div>
