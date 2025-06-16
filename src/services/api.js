@@ -1,5 +1,5 @@
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+  import.meta.env.VITE_API_URL || "https://deliveryflow.onrender.com/api";
 
 class ApiService {
   constructor() {
