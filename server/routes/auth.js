@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET || "uhd9739gf93uef92ufef9u239fueu293fh9u29fe";
 
 // Register
 router.post("/register", async (req, res) => {
@@ -45,24 +45,24 @@ router.post("/register", async (req, res) => {
       role,
     });
 
-    await user.save();
+    const savedUser = await user.save();
 
     // Generate JWT
     const token = jwt.sign(
       {
-        userId: user._id,
-        email: user.email,
-        role: user.role,
+        userId: savedUser._id,
+        email: savedUser.email,
+        role: savedUser.role,
       },
       JWT_SECRET,
       { expiresIn: "24h" },
     );
 
-    console.log(`✅ New user registered: ${user.name} (${user.role})`);
+    console.log(`✅ New user registered: ${savedUser.name} (${savedUser.role})`);
 
     res.status(201).json({
       message: "User registered successfully",
-      user: user.getPublicProfile(),
+      user: savedUser.getPublicProfile(),
       token,
     });
   } catch (error) {

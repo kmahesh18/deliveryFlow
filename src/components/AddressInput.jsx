@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { MapPin, Loader2, Navigation, Search } from "lucide-react";
 import { mapsService } from "../services/maps";
+import toast from "react-hot-toast";
 
 const AddressInput = ({
   label,
@@ -97,15 +98,62 @@ const AddressInput = ({
       setIsLoading(true);
       setError("");
 
-      const location = await mapsService.getCurrentLocation();
-      const address = await mapsService.reverseGeocode(location.lat, location.lng);
+      // Use fallback method for better reliability
+      const location = await mapsService.getCurrentLocationWithFallback();
+      
+      // Validate location data
+      if (!location || typeof location.lat !== 'number' || typeof location.lng !== 'number') {
+        throw new Error("Invalid location data received");
+      }
+      
+      if (location.isDefault) {
+        setError("Location access denied. Please enable location services or enter address manually.");
+        return;
+      }
+      
+      if (location.isApproximate) {
+        setError("Using approximate location. For better accuracy, please enable precise location or enter address manually.");
+      }
 
-      setCoordinates(location);
-      onChange(address.address);
-      onCoordinatesChange?.(location);
+      try {
+        const addressResult = await mapsService.reverseGeocode(location.lat, location.lng);
+
+        setCoordinates(location);
+        onChange(addressResult.address);
+        onCoordinatesChange?.(location);
+        
+        if (!location.isApproximate) {
+          // Only show success toast for precise location
+          toast.success("Location detected!");
+        }
+      } catch (reverseGeocodeError) {
+        console.error("Reverse geocoding failed:", reverseGeocodeError);
+        
+        // Still set the coordinates even if reverse geocoding fails
+        setCoordinates(location);
+        onCoordinatesChange?.(location);
+        
+        // Set a generic address based on coordinates
+        const genericAddress = `Location: ${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}`;
+        onChange(genericAddress);
+        
+        setError("Location detected but address lookup failed. You may need to enter the address manually.");
+      }
     } catch (error) {
       console.error("Location error:", error);
-      setError("Could not get your current location");
+      let errorMessage = "Could not get your current location";
+      
+      if (error.message.includes("denied")) {
+        errorMessage = "Location access denied. Please enable location services in your browser.";
+      } else if (error.message.includes("unavailable")) {
+        errorMessage = "Location services unavailable. Please enter your address manually.";
+      } else if (error.message.includes("timeout")) {
+        errorMessage = "Location request timed out. Please try again or enter address manually.";
+      } else if (error.message.includes("Invalid")) {
+        errorMessage = "Invalid location data received. Please enter your address manually.";
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

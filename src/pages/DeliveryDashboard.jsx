@@ -4,6 +4,7 @@ import { apiService } from "../services/api";
 import { wsService } from "../services/websocket";
 import { mapsService } from "../services/maps";
 import Layout from "../components/Layout";
+import DeliveryRouteMap from "../components/DeliveryRouteMap";
 import toast from "react-hot-toast";
 import {
   Package,
@@ -13,6 +14,8 @@ import {
   Navigation,
   Phone,
   Truck,
+  Route,
+  Map,
 } from "lucide-react";
 
 const DeliveryDashboard = () => {
@@ -22,6 +25,10 @@ const DeliveryDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [trackingOrders, setTrackingOrders] = useState(new Set());
+  const [showRouteView, setShowRouteView] = useState(false);
+  const [routeData, setRouteData] = useState(null);
+  const [optimizedOrders, setOptimizedOrders] = useState([]);
+  const [orderETAs, setOrderETAs] = useState({});
 
   useEffect(() => {
     if (user) {
@@ -56,32 +63,52 @@ const DeliveryDashboard = () => {
 
   const startLocationTracking = async () => {
     try {
-      const location = await mapsService.getCurrentLocation();
+      // Try to get location with fallback options
+      const location = await mapsService.getCurrentLocationWithFallback();
       setCurrentLocation(location);
+
+      // Only show critical notifications
+      if (location.isDefault) {
+        toast.error("Location access denied - using default location", {
+          duration: 5000,
+        });
+      }
 
       // Update location every 10 seconds for active orders (more frequent updates)
       const interval = setInterval(async () => {
         try {
-          const newLocation = await mapsService.getCurrentLocation();
+          // Only try precise location updates if we have permission
+          let newLocation;
+          if (!location.isDefault && !location.isApproximate) {
+            newLocation = await mapsService.getCurrentLocation();
+          } else {
+            // If using fallback, try to get better location occasionally
+            newLocation = await mapsService.getCurrentLocationWithFallback();
+          }
+          
           setCurrentLocation(newLocation);
 
-          // Send location updates for orders being tracked
-          trackingOrders.forEach((orderId) => {
-            console.log("Sending location update for order:", orderId, newLocation);
-            wsService.sendLocationUpdate(
-              orderId,
-              newLocation.lat,
-              newLocation.lng,
-            );
-          });
+          // Send location updates for orders being tracked (only if not using default location)
+          if (!newLocation.isDefault && trackingOrders.size > 0) {
+            trackingOrders.forEach((orderId) => {
+              console.log("Sending location update for order:", orderId, newLocation);
+              wsService.sendLocationUpdate(
+                orderId,
+                newLocation.lat,
+                newLocation.lng,
+              );
+            });
+          }
         } catch (error) {
           console.error("Location update failed:", error);
+          // Don't show toast for every failed update to avoid spam
         }
-      }, 10000); // Changed from 30 seconds to 10 seconds
+      }, 10000);
 
       return () => clearInterval(interval);
     } catch (error) {
       console.error("Failed to get initial location:", error);
+      toast.error("Unable to access location services. Some features may not work properly.");
     }
   };
 
@@ -92,7 +119,6 @@ const DeliveryDashboard = () => {
       
       // Ensure we have valid orders array
       const orders = Array.isArray(response.orders) ? response.orders : [];
-      console.log("Loaded orders:", orders); // Debug log
       
       setAssignedOrders(orders);
     } catch (error) {
@@ -118,7 +144,7 @@ const DeliveryDashboard = () => {
     try {
       // Validate orderId
       if (!orderId || orderId === 'undefined' || orderId === 'null') {
-        toast.error("Invalid order ID");
+        console.error("Invalid order ID");
         return;
       }
 
@@ -132,19 +158,16 @@ const DeliveryDashboard = () => {
         }),
       );
 
-      // Handle location tracking using proper ID
+      // Handle location tracking using proper ID - only show notification for delivered orders
       if (newStatus === "picked-up") {
         setTrackingOrders((prev) => new Set([...prev, orderId]));
-        toast.success("Order picked up! Location tracking started.", {
-          icon: "📍",
-        });
       } else if (newStatus === "delivered") {
         setTrackingOrders((prev) => {
           const newSet = new Set(prev);
           newSet.delete(orderId);
           return newSet;
         });
-        toast.success("Order delivered successfully!", {
+        toast.success("Order delivered!", {
           icon: "🎉",
         });
       }
@@ -152,13 +175,12 @@ const DeliveryDashboard = () => {
       loadStats();
     } catch (error) {
       console.error("Failed to update order status:", error);
-      toast.error(error.message || "Failed to update order status");
+      toast.error("Status update failed");
     }
   };
 
   const getDirections = async (address) => {
     if (!currentLocation) {
-      toast.error("Current location not available");
       return;
     }
 
@@ -169,13 +191,203 @@ const DeliveryDashboard = () => {
       window.open(directionsUrl, "_blank");
     } catch (error) {
       console.error("Failed to get directions:", error);
-      toast.error("Failed to get directions");
+      toast.error("Navigation failed");
     }
   };
 
-  const showRouteInMap = (order) => {
-    // Set the selected order to show route in integrated map
-    setSelectedOrderForRoute(order);
+  const showRouteInMap = async (order) => {
+    try {
+      if (!currentLocation) {
+        console.warn('Current location required to show route');
+        return;
+      }
+
+      // Enable route view if not already shown
+      if (!showRouteView) {
+        setShowRouteView(true);
+      }
+
+      // Calculate route to this specific order - use correct field name with fallbacks
+      const destination = order?.dropAddress || 
+                         order?.deliveryAddress || 
+                         order?.pickupAddress;
+      
+      if (!destination) {
+        console.error('Order missing all address fields:', order);
+        return;
+      }
+
+      const routeData = await mapsService.calculateRoute(currentLocation, [destination]);
+      setRouteData(routeData);
+      
+      // Scroll to route view
+      setTimeout(() => {
+        const routeElement = document.querySelector('[data-route-view]');
+        if (routeElement) {
+          routeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    } catch (error) {
+      console.error('Failed to show route:', error);
+      toast.error('Failed to calculate route');
+    }
+  };
+
+  const getDirectionsToOrder = async (order) => {
+    try {
+      if (!currentLocation) {
+        console.warn('Current location required for directions');
+        return;
+      }
+
+      // Use correct field name for destination with multiple fallbacks
+      const destination = order?.dropAddress || 
+                         order?.deliveryAddress || 
+                         order?.pickupAddress;
+      
+      if (!destination) {
+        console.error('Order missing all address fields:', order);
+        return;
+      }
+
+      await openExternalNavigation(destination);
+    } catch (error) {
+      console.error('Failed to get directions:', error);
+      toast.error('Failed to open directions');
+    }
+  };
+
+  const toggleRouteView = () => {
+    setShowRouteView(!showRouteView);
+  };
+
+  const handleRouteCalculated = (calculatedRoute, orderedDestinations) => {
+    setRouteData(calculatedRoute);
+    setOptimizedOrders(orderedDestinations);
+    // Only show notification for significant route optimizations
+    if (orderedDestinations.length > 1) {
+      toast.success(`Route optimized - ${Math.round(calculatedRoute.totalDuration)} min`);
+    }
+  };
+
+  const startOptimizedDeliveries = async () => {
+    if (!optimizedOrders.length) {
+      toast.error('No optimized route available. Please calculate route first.');
+      return;
+    }
+
+    try {
+      // Mark all orders as being delivered in optimized order
+      const firstOrder = optimizedOrders[0];
+      if (firstOrder) {
+        await updateOrderStatus(firstOrder.id, 'picked-up');
+        toast.success(`Started delivery sequence`, {
+          icon: '🚀'
+        });
+      }
+    } catch (error) {
+      console.error('Failed to start optimized deliveries:', error);
+      toast.error('Failed to start delivery sequence');
+    }
+  };
+
+  const calculateETA = async (order) => {
+    try {
+      if (!currentLocation) {
+        return 'Location required';
+      }
+
+      // Use correct field name for destination with fallbacks
+      const destination = order?.dropAddress || 
+                         order?.deliveryAddress || 
+                         order?.pickupAddress;
+      
+      if (!destination) {
+        console.error('Order missing all address fields for ETA calculation:', order);
+        return 'Address missing';
+      }
+
+      console.log('⏱️ Calculating ETA to destination:', destination);
+      const routeData = await mapsService.calculateRoute(currentLocation, [destination]);
+      
+      return `${Math.round(routeData.totalDuration)} min`;
+    } catch (error) {
+      console.error('Failed to calculate ETA:', error);
+      return 'ETA unavailable';
+    }
+  };
+
+  const updateOrderETA = async (order) => {
+    const orderId = getOrderId(order);
+    if (!orderETAs[orderId] && currentLocation) {
+      const eta = await calculateETA(order);
+      setOrderETAs(prev => ({ ...prev, [orderId]: eta }));
+    }
+  };
+
+  // Calculate ETAs when location or orders change
+  useEffect(() => {
+    if (currentLocation && assignedOrders.length > 0) {
+      assignedOrders.forEach(order => {
+        updateOrderETA(order);
+      });
+    }
+  }, [currentLocation, assignedOrders]);
+
+  const getNextDelivery = () => {
+    if (!optimizedOrders.length) return null;
+    
+    return optimizedOrders.find(order => 
+      order.status === 'assigned' || order.status === 'picked-up'
+    );
+  };
+
+  const openRouteNavigation = async () => {
+    if (!currentLocation || !optimizedOrders.length) {
+      toast.error('Location and route required for navigation');
+      return;
+    }
+
+    try {
+      const destinations = optimizedOrders.map(order => order.address).join('|');
+      const navigationUrl = `https://www.google.com/maps/dir/${currentLocation.lat},${currentLocation.lng}/${destinations}`;
+      window.open(navigationUrl, '_blank');
+      toast.success('Opening route navigation...');
+    } catch (error) {
+      console.error('Failed to open route navigation:', error);
+      toast.error('Failed to open navigation');
+    }
+  };
+
+  const openExternalNavigation = async (address) => {
+    if (!currentLocation) {
+      console.warn("Current location not available");
+      return;
+    }
+
+    try {
+      const destination = await mapsService.geocodeAddress(address);
+      
+      // Create navigation URLs for different apps
+      const googleMapsUrl = `https://www.google.com/maps/dir/${currentLocation.lat},${currentLocation.lng}/${destination.lat},${destination.lng}`;
+      const appleMapsUrl = `https://maps.apple.com/?daddr=${destination.lat},${destination.lng}&saddr=${currentLocation.lat},${currentLocation.lng}`;
+      const wazeUrl = `https://www.waze.com/ul?ll=${destination.lat}%2C${destination.lng}&navigate=yes`;
+
+      // Detect mobile device
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        // On mobile, try to open native apps
+        window.location.href = googleMapsUrl;
+      } else {
+        // On desktop, open in new tab
+        window.open(googleMapsUrl, "_blank");
+      }
+
+    } catch (error) {
+      console.error("Failed to open navigation:", error);
+      toast.error("Failed to open navigation");
+    }
   };
 
   const [selectedOrderForRoute, setSelectedOrderForRoute] = useState(null);
@@ -238,23 +450,178 @@ const DeliveryDashboard = () => {
     return trackingOrders.has(orderId);
   };
 
+  const requestLocationPermission = async () => {
+    try {
+      // Try to get location permission again
+      const location = await mapsService.getCurrentLocation();
+      setCurrentLocation(location);
+      
+      toast.success("Location tracking enabled");
+    } catch (error) {
+      if (error.message.includes("denied")) {
+        toast.error(
+          "Location access denied. Please enable location services in your browser settings and refresh the page.",
+          { duration: 8000 }
+        );
+      } else {
+        toast.error("Failed to access location. Please try again.");
+      }
+      
+      console.error("Location permission request failed:", error);
+    }
+  };
+
+  const showLocationHelp = () => {
+    toast.custom((t) => (
+      <div className="bg-white p-6 rounded-lg shadow-lg border max-w-md">
+        <div className="flex items-start space-x-3">
+          <MapPin className="h-6 w-6 text-blue-500 mt-1 flex-shrink-0" />
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-2">Enable Location Services</h3>
+            <div className="text-sm text-gray-600 space-y-2">
+              <p>To enable accurate delivery tracking:</p>
+              <ol className="list-decimal list-inside space-y-1 text-xs">
+                <li>Click the location icon in your browser's address bar</li>
+                <li>Select "Allow" when prompted for location access</li>
+                <li>If blocked, click the settings icon and allow location</li>
+                <li>Refresh the page after enabling</li>
+              </ol>
+            </div>
+            <div className="flex space-x-2 mt-4">
+              <button
+                onClick={() => {
+                  toast.dismiss(t.id);
+                  requestLocationPermission();
+                }}
+                className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    ), { duration: 10000 });
+  };
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Good day, {user?.name || 'Delivery Person'}! 🚚
-          </h1>
-          <p className="text-gray-600">
-            Manage your delivery assignments and update order status in
-            real-time.
-          </p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Good day, {user?.name || 'Delivery Person'}! 🚚
+              </h1>
+              <p className="text-gray-600">
+                Manage your delivery assignments and update order status in
+                real-time.
+              </p>
+            </div>
+            
+            {/* Route Controls */}
+            <div className="flex items-center space-x-3">
+              {assignedOrders.length > 0 && currentLocation && (
+                <>
+                  <button
+                    onClick={toggleRouteView}
+                    className={`px-4 py-2 rounded-lg border transition-colors flex items-center space-x-2 ${
+                      showRouteView 
+                        ? 'bg-blue-600 text-white border-blue-600' 
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Map className="h-4 w-4" />
+                    <span>{showRouteView ? 'Hide Route' : 'View Route'}</span>
+                  </button>
+                  
+                  {routeData && (
+                    <button
+                      onClick={openRouteNavigation}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                    >
+                      <Navigation className="h-4 w-4" />
+                      <span>Navigate</span>
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
 
-          {currentLocation && (
-            <div className="mt-3 flex items-center space-x-2 text-sm text-gray-600">
+          {currentLocation && !currentLocation.isDefault && !currentLocation.isApproximate && (
+            <div className="mt-3 flex items-center space-x-2 text-sm text-green-600">
               <Navigation className="h-4 w-4 text-green-500" />
               <span>Location tracking active</span>
+            </div>
+          )}
+
+          {currentLocation && (currentLocation.isDefault || currentLocation.isApproximate) && (
+            <div className="mt-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <MapPin className="h-5 w-5 text-yellow-600" />
+                  <div>
+                    <p className="text-sm font-medium text-yellow-800">
+                      {currentLocation.isDefault 
+                        ? "Location access denied" 
+                        : "Using approximate location"}
+                    </p>
+                    <p className="text-xs text-yellow-600">
+                      Enable location services for accurate delivery tracking
+                    </p>
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={showLocationHelp}
+                    className="px-3 py-1 text-xs font-medium text-yellow-700 bg-yellow-100 border border-yellow-300 rounded hover:bg-yellow-200 transition-colors"
+                  >
+                    Help
+                  </button>
+                  <button
+                    onClick={requestLocationPermission}
+                    className="px-3 py-1 text-xs font-medium text-yellow-800 bg-yellow-100 border border-yellow-300 rounded hover:bg-yellow-200 transition-colors"
+                  >
+                    Enable Location
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!currentLocation && (
+            <div className="mt-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <MapPin className="h-5 w-5 text-red-600" />
+                  <div>
+                    <p className="text-sm font-medium text-red-800">Location unavailable</p>
+                    <p className="text-xs text-red-600">Unable to access location services</p>
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={showLocationHelp}
+                    className="px-3 py-1 text-xs font-medium text-red-700 bg-red-100 border border-red-300 rounded hover:bg-red-200 transition-colors"
+                  >
+                    Help
+                  </button>
+                  <button
+                    onClick={requestLocationPermission}
+                    className="px-3 py-1 text-xs font-medium text-red-800 bg-red-100 border border-red-300 rounded hover:bg-red-200 transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -378,13 +745,21 @@ const DeliveryDashboard = () => {
                                 <MapPin className="h-4 w-4 mr-2" />
                                 Delivery Location
                               </h4>
-                              <button
-                                onClick={() => getDirections(order.dropAddress || '')}
-                                className="text-red-600 hover:text-red-700 transition-colors"
-                                title="Get directions"
-                              >
-                                <Navigation className="h-4 w-4" />
-                              </button>
+                              <div className="flex items-center space-x-2">
+                                {orderETAs[orderId] && (
+                                  <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full flex items-center space-x-1">
+                                    <Clock className="h-3 w-3" />
+                                    <span>ETA: {orderETAs[orderId]}</span>
+                                  </span>
+                                )}
+                                <button
+                                  onClick={() => getDirections(order.dropAddress || '')}
+                                  className="text-red-600 hover:text-red-700 transition-colors"
+                                  title="Get directions"
+                                >
+                                  <Navigation className="h-4 w-4" />
+                                </button>
+                              </div>
                             </div>
                             <p className="text-red-800 text-sm">
                               {order.dropAddress || 'Address not available'}
@@ -440,8 +815,16 @@ const DeliveryDashboard = () => {
                           onClick={() => showRouteInMap(order)}
                           className="flex items-center space-x-2 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-all duration-200"
                         >
-                          <Navigation className="h-4 w-4" />
+                          <Route className="h-4 w-4" />
                           <span>View Route</span>
+                        </button>
+
+                        <button
+                          onClick={() => getDirectionsToOrder(order)}
+                          className="flex items-center space-x-2 border border-blue-300 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-50 transition-all duration-200"
+                        >
+                          <Navigation className="h-4 w-4" />
+                          <span>Get Directions</span>
                         </button>
                       </div>
                     </div>
@@ -451,6 +834,77 @@ const DeliveryDashboard = () => {
             )}
           </div>
         </div>
+
+        {/* Route View */}
+        {showRouteView && (
+          <div className="mb-8" data-route-view>
+            <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
+                      <Route className="h-5 w-5 text-blue-600" />
+                      <span>Delivery Route</span>
+                    </h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Optimized route for all assigned deliveries
+                    </p>
+                  </div>
+                  {routeData && (
+                    <div className="flex items-center space-x-4">
+                      <button
+                        onClick={startOptimizedDeliveries}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                      >
+                        <Truck className="h-4 w-4" />
+                        <span>Start Route</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <DeliveryRouteMap
+                orders={assignedOrders}
+                currentLocation={currentLocation}
+                onRouteCalculated={handleRouteCalculated}
+                className="border-0 shadow-none"
+              />
+              
+              {/* Next Delivery Card */}
+              {(() => {
+                const nextDelivery = getNextDelivery();
+                return nextDelivery ? (
+                  <div className="p-6 border-t border-gray-100 bg-blue-50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium text-blue-900 mb-1">Next Delivery</h4>
+                        <p className="text-blue-700 font-semibold">{nextDelivery.customerName}</p>
+                        <p className="text-sm text-blue-600">{nextDelivery.address}</p>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <button
+                          onClick={() => openExternalNavigation(nextDelivery.address)}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                        >
+                          <Navigation className="h-4 w-4" />
+                          <span>Navigate</span>
+                        </button>
+                        <button
+                          onClick={() => updateOrderStatus(nextDelivery.id, 'picked-up')}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                        >
+                          <Package className="h-4 w-4" />
+                          <span>Pick Up</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );

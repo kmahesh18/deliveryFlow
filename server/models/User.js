@@ -55,7 +55,6 @@ const userSchema = new mongoose.Schema(
 );
 
 // Indexes for better performance
-userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ "deliveryStats.isAvailable": 1 });
 

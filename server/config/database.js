@@ -5,7 +5,7 @@ dotenv.config();
 
 const MONGODB_URI =
   process.env.MONGODB_URI ||
-  "mongodb+srv://maheshkolli888:p99m99s99@cluster0.3bezct7.mongodb.net/mini-delivery?retryWrites=true&w=majority/deliveryflow";
+  "mongodb+srv://maheshkolli888:p99m99s99@cluster0.3bezct7.mongodb.net/mini-delivery?retryWrites=true&w=majority";
 
 class Database {
   constructor() {
@@ -18,10 +18,8 @@ class Database {
       // Mongoose configuration
       mongoose.set("strictQuery", false);
 
-      // Connection options - removed deprecated options
+      // Connection options - using only supported options
       const options = {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
         maxPoolSize: 10,
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 45000,

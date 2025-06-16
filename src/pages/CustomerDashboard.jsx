@@ -126,7 +126,7 @@ const CustomerDashboard = () => {
     }));
     setShowGeneratedDescription(false);
     setGeneratedDescription("");
-    toast.success("Description applied!");
+    // Item description applied silently
   };
 
   const discardGeneratedDescription = () => {

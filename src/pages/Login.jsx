@@ -26,7 +26,7 @@ const Login = () => {
     try {
       const success = await login(email, password, role);
       if (success) {
-        toast.success("Welcome back! You have been successfully logged in.");
+        // User is logged in - redirect happens automatically
         
         // Redirect based on role
         switch (role) {

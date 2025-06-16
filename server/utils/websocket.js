@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET || "uhd9739gf93uef92ufef9u239fueu293fh9u29fe";
 
 export const setupWebSocket = (io) => {
   console.log("🔌 Setting up WebSocket server...");
