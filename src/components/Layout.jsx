@@ -60,11 +60,11 @@ const Layout = ({ children }) => {
               to="/"
               className="flex items-center space-x-3 text-primary font-bold text-xl hover:text-primary/80 transition-colors group"
             >
-              <div className="bg-gradient-to-br from-primary-500 to-blue-600 p-2 rounded-xl shadow-glow group-hover:scale-110 transition-transform duration-300">
+              <div className=" rounded-xl transition-transform duration-300">
                 <img 
                   src="/logo.png" 
                   alt="DeliveryFlow Logo" 
-                  className="h-6 w-6 object-contain"
+                  className="h-10 w-10 object-contain"
                   onError={(e) => {
                     // Fallback to Package icon if logo fails to load
                     e.target.style.display = 'none';
@@ -212,11 +212,11 @@ const Layout = ({ children }) => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="space-y-4">
               <div className="flex items-center space-x-3 text-primary font-bold text-lg">
-                <div className="bg-primary p-2 rounded-lg">
+                <div className="rounded-lg">
                   <img 
                     src="/logo.png" 
                     alt="DeliveryFlow Logo" 
-                    className="h-5 w-5 object-contain"
+                    className="h-10 w-10 object-contain"
                     onError={(e) => {
                       e.target.style.display = 'none';
                       e.target.nextSibling.style.display = 'block';
