@@ -158,7 +158,24 @@ class ApiService {
 
   // Health check
   async healthCheck() {
-    return this.request("/health");
+    try {
+      const response = await fetch("https://deliveryflow.onrender.com/api/health", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(30000),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error("Health check failed:", error);
+      throw error;
+    }
   }
 }
 

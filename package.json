@@ -15,6 +15,7 @@
     "start:full": "concurrently \"npm run server:start\" \"npm run build && npm run preview\""
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.32.0",
     "framer-motion": "^12.18.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.515.0",
