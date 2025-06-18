@@ -57,7 +57,7 @@ const Layout = ({ children }) => {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link
-              to="/"
+              to={getDashboardLink()}
               className="flex items-center space-x-3 text-primary font-bold text-xl hover:text-primary/80 transition-colors group"
             >
               <div className=" rounded-xl transition-transform duration-300">
